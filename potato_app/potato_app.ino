@@ -3,18 +3,12 @@
 #include <WiFiClient.h>
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
-// #include <FirebaseESP8266.h>
 
-// WiFi credentials
-// const char* ssid = "mahen kecil";
-// const char* password = "1231231234";
-// const char* ssid = "LAB MOBILE";
-// const char* password = "Pr0gram1ng";
-const char* ssid = "Realme 11 Pro Plus";
-const char* password = "5ghzgamuncul";
+const char* ssid = "LAB RPL";
+const char* password = "@polije.ac.id";
 
 // Flask server IP and endpoint
-const char* serverIP = "192.168.0.102";  // IP dari Flask server
+const char* serverIP = "172.16.115.93";  // IP dari Flask server
 const int serverPort = 5000;
 const char* endpointSet = "/set";  // Endpoint untuk mengirim data
 const char* endpointGet = "/get";  // Endpoint untuk mendapatkan data
@@ -24,10 +18,7 @@ const char* endpointDevice = "/device/1730184375";  // Endpoint untuk mendapatka
 #define DHT_PIN D4         // Pin untuk DHT22
 #define DHT_TYPE DHT22
 #define RELAY_PIN D2       // Pin untuk relay
-// #define FIREBASE_HOST "https://potato-base-34d80-default-rtdb.asia-southeast1.firebasedatabase.app/"
-// #define FIREBASE_AUTH "RL1Nhzm9Isoia0I9hQPehQ3Ni2ecrUudyu2iR3u4"
 
-// FirebaseData firebaseData;
 DHT dht(DHT_PIN, DHT_TYPE);
 String mode;       // Default ke auto
 String blower_status;
@@ -44,13 +35,6 @@ void setup() {
   temperature_threshold = 30.0;
 
   connectToWiFi();
-
-  // Inisialisasi Firebase
-  // Firebase.begin(FIREBASE_HOST, FIREBASE_AUTH);
-
-  // // Set listener untuk mode dan blower_status
-  // Firebase.setStreamCallback(firebaseData, streamCallback, streamTimeoutCallback);
-  // Firebase.beginStream(firebaseData, "/device/1730184375");
 }
 
 void loop() {
@@ -80,8 +64,12 @@ void connectToWiFi() {
 void readAndDisplaySensorData() {
   // Membaca data dari LDR
   int ldrValue = analogRead(LDR_PIN);
-  Serial.print("Nilai LDR: ");
-  Serial.println(ldrValue);
+
+  // Invers untuk membalik logika
+  int inversLdrValue = 1024 - ldrValue; // 1023 adalah maksimum nilai ADC
+  Serial.print("Nilai LDR (Invers): ");
+  Serial.println(inversLdrValue);
+
 
   // Membaca data dari sensor DHT22
   float temperature = dht.readTemperature();
@@ -195,6 +183,7 @@ void sendToServer() {
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
   int ldrValue = analogRead(LDR_PIN);
+  int inversLdrValue = 1024 - ldrValue;
 
   // Periksa apakah data sensor valid
   if (isnan(temperature) || isnan(humidity)) {
@@ -204,13 +193,11 @@ void sendToServer() {
 
   // JSON payload
   String payload = "{\"device\": \"1730184375\", \"humidity\": " + String(humidity) +
-                   ", \"light_intensity\": " + String(ldrValue) +
+                   ", \"light_intensity\": " + String(inversLdrValue) +
                    ", \"temperature\": " + String(int(temperature)) + "}";
 
   // HTTP request ke Flask API
-  String url = String("http://") + serverIP + ":" + String(serverPort) + endpointSet; // Gunakan endpointSet saja
-  // Serial.println("Sending data to: " + url);
-  // Serial.println("Payload: " + payload);
+  String url = String("http://") + serverIP + ":" + String(serverPort) + endpointSet; // Gunakan endpointSet
 
   http.begin(client, url);                      // Mulai koneksi HTTP
   http.addHeader("Content-Type", "application/json");  // Header untuk JSON
@@ -228,19 +215,3 @@ void sendToServer() {
   http.end(); // Akhiri koneksi
 }
 
-// // Callback jika ada perubahan data di Firebase
-// void streamCallback(FirebaseStream data) {
-//   if (data.getDataType() == "json") {
-//     mode = data.jsonData()["mode"].as<String>();
-//     blower_status = data.jsonData()["blower_status"].as<String>();
-//     Serial.println("Mode: " + mode + ", Blower Status: " + blower_status);
-//     controlRelay();  // Eksekusi kontrol relay langsung
-//   }
-// }
-
-// void streamTimeoutCallback(bool timeout) {
-//   if (timeout) {
-//     Serial.println("Stream timeout, reconnecting...");
-//     Firebase.beginStream(firebaseData, "/device/1730184375");
-//   }
-// }
